@@ -1,0 +1,18 @@
+# Never commit local settings or secrets
+local.settings.json
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build artifacts
+collector-release.zip
+*.zip
+
+# OS/editor noise
+.DS_Store
+.vscode/

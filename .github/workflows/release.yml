@@ -1,0 +1,91 @@
+name: Build and Release Collector Package
+
+# Triggers on any tag matching v* (e.g. v1.0.0, v1.1.0). Push a tag to cut
+# a release:
+#   git tag v1.0.0
+#   git push origin v1.0.0
+# The ARM template's `collectorPackageUrl` parameter should point at the
+# resulting release asset URL - see DEPLOY-NOTES-GITHUB.md.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Allows running this manually from the Actions tab without pushing a
+  # tag, e.g. to test the guard-rail/build steps on a branch.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard rail - refuse to release if any lab/mock/test file is present
+        run: |
+          set -e
+          FORBIDDEN_FILES="mock_akamai.py mock_data.py local.settings.json local.settings.json.example"
+          for f in $FORBIDDEN_FILES; do
+            if [ -f "$f" ]; then
+              echo "::error::$f must never be present in this production repository."
+              exit 1
+            fi
+          done
+          if [ -d "tests" ]; then
+            echo "::error::A tests/ directory must never be present in this production repository."
+            exit 1
+          fi
+          echo "Guard rail passed - no lab/mock/test files found."
+
+      - name: Verify required production files are present
+        run: |
+          set -e
+          REQUIRED_FILES="function_app.py akamai_client.py edgegrid_auth.py checkpoint.py normalizer.py ingestion.py config.py logging_utils.py host.json requirements.txt"
+          for f in $REQUIRED_FILES; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Required file $f is missing."
+              exit 1
+            fi
+          done
+          echo "All required production files present."
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Syntax-check every Python file (no test suite lives in this repo)
+        run: |
+          set -e
+          python -m py_compile function_app.py akamai_client.py edgegrid_auth.py \
+            checkpoint.py normalizer.py ingestion.py config.py logging_utils.py
+          echo "All collector files compile cleanly."
+
+      - name: Validate host.json and requirements.txt are well-formed
+        run: |
+          set -e
+          python -c "import json; json.load(open('host.json'))"
+          test -s requirements.txt
+          echo "host.json is valid JSON; requirements.txt is non-empty."
+
+      - name: Build release zip
+        run: |
+          set -e
+          zip -j collector-release.zip \
+            function_app.py akamai_client.py edgegrid_auth.py \
+            checkpoint.py normalizer.py ingestion.py config.py \
+            logging_utils.py host.json requirements.txt
+          echo "--- Release zip contents ---"
+          unzip -l collector-release.zip
+          echo "sha256sum:"
+          sha256sum collector-release.zip
+
+      - name: Create GitHub Release with the zip attached
+        uses: softprops/action-gh-release@v2
+        with:
+          files: collector-release.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

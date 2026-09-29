@@ -1,0 +1,7 @@
+azure-functions>=1.20.0
+azure-identity>=1.17.0
+azure-storage-blob>=12.20.0
+azure-monitor-ingestion>=1.0.4
+requests>=2.32.0
+flask>=3.0.0
+pytest>=8.0.0
