@@ -1,4 +1,4 @@
-# Akamai Event Viewer → Microsoft Sentinel Collector
+# Akamai Edge DNS Event Viewer → Microsoft Sentinel Collector
 
 An Azure Function (Python 3.11, Flex Consumption) that retrieves administrative and DNS audit events from the Akamai Event Viewer API and ingests them into Microsoft Sentinel through the Azure Monitor Logs Ingestion API.
 
@@ -126,6 +126,51 @@ Role assignments can take up to 30 minutes to propagate. Until then, expect `403
 
 ---
 
+## Estimated cost
+
+**In short: the Function App itself is free, and the whole solution costs well under $1 per month.**
+
+Basis: Flex Consumption, Linux, 2 GB instance, UAE North, pay-as-you-go pricing in USD. One run takes about 0.074 seconds (measured), which is about 0.148 GB-s.
+
+### Function App
+
+Flex Consumption includes a monthly free grant of **250,000 executions** and **100,000 GB-s**. Even the 5-minute schedule uses about 3% of the executions grant and about 1% of the GB-s grant, so the Function App meters cost **$0.00**.
+
+| Schedule | Runs per month | GB-s per month | Function App cost |
+|----------|----------------|----------------|-------------------|
+| Every 5 min | 8,640 | 1,278 | $0.00 |
+| Every 10 min | 4,320 | 639 | $0.00 |
+| Every 15 min | 2,880 | 426 | $0.00 |
+| Every 30 min | 1,440 | 213 | $0.00 |
+
+### Supporting services (not covered by the free grant)
+
+| Service | What it is used for | Approx. cost per month |
+|---------|---------------------|------------------------|
+| Storage account | Checkpoint read and write on every run, plus runtime files | $0.01 – $0.05 |
+| Key Vault | Three Akamai secrets (upper estimate) | about $0.18 |
+| Application Insights | Log ingestion, about 5 KB per run | $0.02 – $0.10 |
+
+### Total
+
+| Schedule | Estimated total per month |
+|----------|---------------------------|
+| Every 5 min | about $0.33 |
+| Every 10 min | about $0.26 |
+| Every 15 min | about $0.23 |
+| Every 30 min | about $0.21 |
+
+
+### Official pricing links
+
+- [Azure Functions pricing](https://azure.microsoft.com/en-us/pricing/details/functions/)
+- [Flex Consumption plan billing](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan#billing)
+- [Azure Blob Storage pricing](https://azure.microsoft.com/en-us/pricing/details/storage/blobs/)
+- [Azure Key Vault pricing](https://azure.microsoft.com/en-us/pricing/details/key-vault/)
+- [Azure Monitor (Log Analytics and Application Insights) pricing](https://azure.microsoft.com/
+
+---
+
 ## Prerequisites
 
 - An existing Azure resource group and Microsoft Sentinel workspace
@@ -137,7 +182,7 @@ Role assignments can take up to 30 minutes to propagate. Until then, expect `403
 
 ## Deployment
 
-Deployment is manual, through the Azure Portal and Visual Studio Code. The full step-by-step procedure is in the accompanying **SOP (Standard Operating Procedure)**.
+Deployment is manual, through the Azure Portal and Visual Studio Code. The full step-by-step procedure.
 
 Summary:
 
@@ -223,25 +268,6 @@ Live logs: Function App → **Log stream**.
 
 ---
 
-## Contributing
-
-Do not commit:
-
-- `local.settings.json`
-- `.env` files
-- Any file containing an Akamai credential
-- Test, mock or scratch files
-
-Suggested `.gitignore`:
-
-```
-local.settings.json
-.env
-.venv/
-__pycache__/
-*.zip
-.vscode/
-```
 
 ## Support
 
